@@ -7,8 +7,8 @@
         <input type="email" id="email" v-model="email" required>
       </div>
       <div class="form-group">
-        <label for="username">Логин</label>
-        <input type="text" id="username" v-model="username" required>
+        <label for="login">Логин</label>
+        <input type="text" id="login" v-model="login" required>
       </div>
       <div class="form-group">
         <label for="password">Пароль</label>
@@ -29,9 +29,9 @@
 export default {
   data() {
     return {
-      email: '',
-      username: '',
+      login: '',
       password: '',
+      email: '',
       showPassword: false,
     };
   },
@@ -39,9 +39,9 @@ export default {
     async registerUser() {
       try {
         const data = JSON.stringify({
-          Email: this.email,
-          Username: this.username,
-          Password: this.password
+          login: this.login,
+          password: this.password,
+          email: this.email
         });
         const response = await fetch('http://localhost/X-men/back/register.php', {
           method: 'POST',
@@ -70,7 +70,7 @@ export default {
   max-width: 500px;
   margin: 0 auto;
   padding: 20px;
-  border-radius: 16px; 
+  border-radius: 16px;
   background-color: #D9D9D9;
 }
 
