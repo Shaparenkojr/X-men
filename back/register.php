@@ -6,31 +6,36 @@ header('Content-Type: application/json');
 
 require_once ('db.php');
 
+// Получаем данные из запроса
 $data = json_decode(file_get_contents('php://input'), true);
 
+// Извлекаем данные
 $login = $data['login'];
 $password = $data['password'];
 $email = $data['email'];
 
+// Подготавливаем ответ
 $response = [
     'success' => true,
     'user_found' => true,
 ];
 
-if (empty($login) || empty($password) || empty($email)) {
-    $response['success'] = false;
-    $response['error'] = 'empty_data';
+// Формируем SQL-запрос
+$sql = "INSERT INTO `users` (login, pass, email) VALUES ('$login', '$password', '$email')";
+
+// Выполняем запрос
+$result = $conn->query($sql);
+
+// Проверяем результат запроса
+if ($result === TRUE) {
+    // Запрос выполнен успешно
+    $response['message'] = 'Пользователь успешно добавлен.';
 } else {
-
-    $sql = "INSERT INTO users (login, pass, email) VALUES ('$login', '$password', '$email')";
-
-    if ($conn->query($sql) === TRUE) {
-        $response["message"] = "Успешная регистрация";
-    } else {
-        $response['success'] = false;
-        $response["message"] = "Ошибка: " . $conn->error;
-    }
+    // Произошла ошибка при выполнении запроса
+    $response['success'] = false;
+    $response['error'] = 'Ошибка: ' . $conn->error;
 }
 
 // Возвращаем ответ в формате JSON
 echo json_encode($response);
+?>
