@@ -29,6 +29,14 @@
 
 <script>
 export default {
+  data() {
+    return {
+      login: '',
+      password: '',
+      rememberMe: false,
+      showPassword: false,
+    };
+  },
   methods: {
     async loginUser() {
       try {
@@ -62,7 +70,6 @@ export default {
 .form-container {
   width: 100%;
   max-width: 500px;
-  /* Увеличим ширину формы */
   margin: 0 auto;
   padding: 20px;
   border-radius: 16px;

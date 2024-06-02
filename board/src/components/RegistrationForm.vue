@@ -7,8 +7,8 @@
         <input type="email" id="email" v-model="email" required>
       </div>
       <div class="form-group">
-        <label for="username">Логин</label>
-        <input type="text" id="username" v-model="username" required>
+        <label for="login">Логин</label>
+        <input type="text" id="login" v-model="login" required>
       </div>
       <div class="form-group">
         <label for="password">Пароль</label>
@@ -29,15 +29,33 @@
 export default {
   data() {
     return {
-      email: '',
-      username: '',
+      login: '',
       password: '',
-      showPassword: false
+      email: '',
+      showPassword: false,
     };
   },
   methods: {
-    registerUser() {
-      console.log('Регистрация пользователя:', this.email, this.username, this.password);
+    async registerUser() {
+      try {
+        const data = JSON.stringify({
+          login: this.login,
+          password: this.password,
+          email: this.email
+        });
+        const response = await fetch('http://localhost/X-men/back/register.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: data
+        });
+        const answer = await response.json();
+        console.log(answer);
+        // Дополнительная логика обработки ответа от сервера
+      } catch (err) {
+        console.error('Ошибка:', err);
+      }
     },
     toggleShowPassword() {
       this.showPassword = !this.showPassword;
@@ -49,10 +67,10 @@ export default {
 <style>
 .form-container {
   width: 100%;
-  max-width: 500px; /* Увеличим ширину формы */
+  max-width: 500px;
   margin: 0 auto;
   padding: 20px;
-  border-radius: 16px; 
+  border-radius: 16px;
   background-color: #D9D9D9;
 }
 
