@@ -60,12 +60,45 @@ export default {
     toggleEditMode() {
       this.isEditMode = !this.isEditMode;
     },
-    saveCard() {
-      this.$emit('updateCard', { ...this.card, title: this.localTitle, description: this.localDescription });
-      this.isEditMode = false;
+    async saveCard() {
+      const updatedCard = {
+        ...this.card,
+        title: this.localTitle,
+        description: this.localDescription,
+      };
+      try {
+        const response = await fetch('http://localhost/X-men/back/update_card.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updatedCard),
+        });
+        const data = await response.json();
+        if (data.success) {
+          this.$emit('updateCard', updatedCard);
+        }
+        this.isEditMode = false;
+      } catch (err) {
+        console.error('Ошибка:', err);
+      }
     },
-    deleteCard() {
-      this.$emit('deleteCard');
+    async deleteCard() {
+      try {
+        const response = await fetch('http://localhost/X-men/back/delete_card.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id: this.card.id }),
+        });
+        const data = await response.json();
+        if (data.success) {
+          this.$emit('deleteCard');
+        }
+      } catch (err) {
+        console.error('Ошибка:', err);
+      }
     },
     openColorPicker() {
       this.showColorPicker = true;
@@ -113,6 +146,7 @@ export default {
   },
 };
 </script>
+
 
 <style scoped>
 .card {

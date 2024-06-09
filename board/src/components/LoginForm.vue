@@ -50,11 +50,15 @@ export default {
             'Content-Type': 'application/json',
           },
           body: data
-        })
-        // Вывод ответа от бэкенда в виде json
-        // Заменить на обработку ответа
+        });
         const answer = await response.json();
-        console.log(answer);
+
+        // Перенаправление на страницу /board после успешной аутентификации
+        if (response.ok) {
+          this.$router.push({ name: 'BoardPage', params: { login: this.login } });
+        } else {
+          console.log(answer.error); // Обработка ошибок входа
+        }
       } catch (err) {
         console.error('Ошибка:', err);
       }

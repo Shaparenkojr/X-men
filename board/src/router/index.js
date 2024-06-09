@@ -18,7 +18,9 @@ const routes = [
   },
   {
     path: '/board',
-    component: BoardPage
+    name: 'BoardPage',
+    component: BoardPage,
+    meta: { requiresAuth: true } // Добавляем мета-информацию, чтобы защитить этот маршрут
   }
 ];
 
@@ -27,24 +29,51 @@ const router = createRouter({
   routes
 });
 
+// Добавляем глобальную навигацию для защиты маршрутов
+router.beforeEach((to, from, next) => {
+  // Проверяем, требует ли маршрут аутентификации
+  if (to.matched.some(record => record.meta.requiresAuth)) {
+    // Если пользователь не аутентифицирован, перенаправляем его на страницу входа
+    if (!localStorage.getItem('token')) {
+      next('/login');
+    } else {
+      next(); // Продолжаем навигацию
+    }
+  } else {
+    next(); // Продолжаем навигацию для остальных маршрутов
+  }
+});
+
 export default router;
 
 
 // import { createRouter, createWebHistory } from 'vue-router';
-// import RegistrationForm from '@/components/RegistrationForm.vue';
 // import LoginForm from '@/components/LoginForm.vue';
+// import RegistrationForm from '@/components/RegistrationForm.vue';
 // import BoardPage from '@/components/BoardPage.vue';
+
+// const routes = [
+//   {
+//     path: '/',
+//     redirect: '/login'
+//   },
+//   {
+//     path: '/login',
+//     component: LoginForm
+//   },
+//   {
+//     path: '/register',
+//     component: RegistrationForm
+//   },
+//   {
+//     path: '/board',
+//     component: BoardPage
+//   }
+// ];
 
 // const router = createRouter({
 //   history: createWebHistory(),
-//   routes: [
-//     { path: '/register', component: RegistrationForm },
-//     { path: '/login', component: LoginForm },
-//     { path: '/board', component: BoardPage },
-//     // Убираем маршрут для компонента App.vue
-//     // { path: '/', component: App },
-//     { path: '/', redirect: '/login' }, // Перенаправление на страницу входа по умолчанию
-//   ],
+//   routes
 // });
 
 // export default router;

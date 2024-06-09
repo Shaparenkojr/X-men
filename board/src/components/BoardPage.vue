@@ -10,7 +10,7 @@
         </div>
         <div class="user-info">
           <div class="user-details">
-            <div class="user-name">User123</div>
+            <div class="user-name">{{ $route.params.login }}</div>
             <img src="../icons/logout.svg" alt="Logout" class="logout-icon" onclick="logout()">
           </div>
         </div>
@@ -44,77 +44,85 @@ export default {
   },
   data() {
     return {
-      columns: [
-        {
-          id: 1,
-          title: 'To Do',
-          cards: [
-            { id: 1, title: 'Task 1', description: 'Description 1', color: '#f4ae5b' },
-            { id: 2, title: 'Task 2', description: 'Description 2', color: '#f4ae5b' },
-          ],
-          colors: ['#d9d9d9', '#d9d9d9', '#d9d9d9'],
-        },
-        {
-          id: 2,
-          title: 'In Progress',
-          cards: [
-            { id: 3, title: 'Task 3', description: 'Description 3', color: '#f4ae5b' },
-          ],
-          colors: ['#d9d9d9', '#d9d9d9', '#d9d9d9'],
-        },
-        {
-          id: 3,
-          title: 'Done',
-          cards: [
-            { id: 4, title: 'Task 4', description: 'Description 4', color: '#f4ae5b' },
-          ],
-          colors: ['#d9d9d9', '#d9d9d9', '#d9d9d9'],
-        },
-      ],
+      columns: [],
       isEditMode: false,
+      loggedInUser: "", // Инициализируем логин пользователя пустой строкой
     };
   },
+  async created() {
+    await this.fetchColumns();
+    this.fetchUserData(); // Вызываем метод получения данных о пользователе при создании компонента
+  },
   methods: {
-    createColumn() {
-      const newColumn = {
-        id: Date.now(),
-        title: 'New Column',
-        cards: [],
-        colors: ['#d9d9d9', '#d9d9d9', '#d9d9d9'],
-      };
-      this.columns.push(newColumn);
+    async fetchColumns() {
+      try {
+        const response = await fetch('http://localhost/X-men/back/get_columns.php');
+        const data = await response.json();
+        this.columns = data;
+      } catch (err) {
+        console.error('Ошибка:', err);
+      }
     },
-    deleteColumn(index) {
-      this.columns.splice(index, 1);
+    async createColumn() {
+      const newColumn = {
+        title: 'New Column',
+      };
+      try {
+        const response = await fetch('http://localhost/X-men/back/create_column.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(newColumn),
+        });
+        const data = await response.json();
+        if (data.id) {
+          newColumn.id = data.id;
+          newColumn.cards = [];
+          newColumn.colors = ['#d9d9d9', '#d9d9d9', '#d9d9d9'];
+          this.columns.push(newColumn);
+        }
+      } catch (err) {
+        console.error('Ошибка:', err);
+      }
+    },
+    async deleteColumn(index) {
+      const column = this.columns[index];
+      try {
+        const response = await fetch('http://localhost/X-men/back/delete_column.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id: column.id }),
+        });
+        const data = await response.json();
+        if (data.success) {
+          this.columns.splice(index, 1);
+        }
+      } catch (err) {
+        console.error('Ошибка:', err);
+      }
     },
     toggleEditMode() {
       this.isEditMode = !this.isEditMode;
     },
-    moveCard(card, fromColumnIndex, toColumnIndex) {
-      const fromColumn = this.columns[fromColumnIndex];
-      const toColumn = this.columns[toColumnIndex];
-
-      const cardIndex = fromColumn.cards.findIndex(c => c.id === card.id);
-      if (cardIndex !== -1) {
-        fromColumn.cards.splice(cardIndex, 1);
-        toColumn.cards.unshift(card); // Add to the top
-      }
-    },
-    updateColumn(index, newTitle) {
-      this.columns[index].title = newTitle;
-    },
-    updateCards(index, newCards) {
-      this.columns[index].cards = newCards;
-    },
-    changeColumnColor(index, color) {
-      this.columns[index].colors.unshift(color);
-      this.columns[index].colors = this.columns[index].colors.slice(0, 3);
-    },
-    toggleOrder() {
-      // implement the function to toggle column order
-    },
     updateOrder() {
       // handle drag and drop reorder
+    },
+    async fetchUserData() {
+      try {
+        // Отправляем запрос на сервер для получения данных о текущем пользователе
+        const response = await fetch("http://localhost/X-men/back/get_user_data.php");
+        const data = await response.json();
+        this.loggedInUser = data.username; // Устанавливаем логин пользователя в полученное значение
+      } catch (error) {
+        console.error("Ошибка:", error);
+      }
+    },
+    logout() {
+      // Реализуйте метод для выхода из системы
+      console.log('Пользователь вышел из системы');
     },
   },
 };
@@ -129,6 +137,8 @@ export default {
   align-items: center;
   padding: 20px;
   font-family: 'Inter', sans-serif;
+  /* height: 100vh;
+  overflow: hidden; */
 }
 
 .board-header {

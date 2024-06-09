@@ -99,9 +99,23 @@ export default {
     toggleEditMode() {
       this.isEditMode = !this.isEditMode;
     },
-    saveColumn() {
-      this.$emit('updateColumn', this.localTitle);
-      this.isEditMode = false;
+    async saveColumn() {
+      try {
+        const response = await fetch('http://localhost/X-men/back/update_column.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id: this.column.id, title: this.localTitle }),
+        });
+        const data = await response.json();
+        if (data.success) {
+          this.$emit('updateColumn', this.localTitle);
+        }
+        this.isEditMode = false;
+      } catch (err) {
+        console.error('Ошибка:', err);
+      }
     },
     confirmDeleteColumn() {
       this.showDeleteConfirmation = true;
@@ -109,25 +123,84 @@ export default {
     hideDeleteConfirmation() {
       this.showDeleteConfirmation = false;
     },
-    deleteColumn() {
-      this.$emit('deleteColumn');
+    async deleteColumn() {
+      try {
+        const response = await fetch('http://localhost/X-men/back/delete_column.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id: this.column.id }),
+        });
+        const data = await response.json();
+        if (data.success) {
+          this.$emit('deleteColumn');
+        }
+      } catch (err) {
+        console.error('Ошибка:', err);
+      }
     },
-    createCard() {
+    async createCard() {
       const newCard = {
         id: Date.now(),
         description: '',
         color: '#666666',
+        column_id: this.column.id
       };
-      this.localCards.unshift(newCard);
-      this.$emit('updateCards', this.localCards);
+      try {
+        const response = await fetch('http://localhost/X-men/back/create_card.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(newCard),
+        });
+        const data = await response.json();
+        if (data.success) {
+          newCard.id = data.id;
+          this.localCards.unshift(newCard);
+          this.$emit('updateCards', this.localCards);
+        }
+      } catch (err) {
+        console.error('Ошибка:', err);
+      }
     },
-    updateCard(cardIndex, newCard) {
-      this.localCards.splice(cardIndex, 1, newCard);
-      this.$emit('updateCards', this.localCards);
+    async updateCard(cardIndex, newCard) {
+      try {
+        const response = await fetch('http://localhost/X-men/back/update_card.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(newCard),
+        });
+        const data = await response.json();
+        if (data.success) {
+          this.localCards.splice(cardIndex, 1, newCard);
+          this.$emit('updateCards', this.localCards);
+        }
+      } catch (err) {
+        console.error('Ошибка:', err);
+      }
     },
-    deleteCard(cardIndex) {
-      this.localCards.splice(cardIndex, 1);
-      this.$emit('updateCards', this.localCards);
+    async deleteCard(cardIndex) {
+      const cardId = this.localCards[cardIndex].id;
+      try {
+        const response = await fetch('http://localhost/X-men/back/delete_card.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id: cardId }),
+        });
+        const data = await response.json();
+        if (data.success) {
+          this.localCards.splice(cardIndex, 1);
+          this.$emit('updateCards', this.localCards);
+        }
+      } catch (err) {
+        console.error('Ошибка:', err);
+      }
     },
     updateCardsOrder() {
       this.$emit('updateCards', this.localCards);
