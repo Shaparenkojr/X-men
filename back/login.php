@@ -9,8 +9,8 @@ require_once ('db.php');
 
 // Получение данных POST
 $data = json_decode(file_get_contents('php://input'), true);
-$login = $data['Login'];
-$pass = $data['Password'];
+$login = $data['login'];
+$pass = $data['password'];
 
 $response = [
     'success' => true,
@@ -26,10 +26,9 @@ if (empty($login) || empty($pass)) {
     $result = $conn->query($sql);
 
     if ($result->num_rows > 0) {
-
         $row = $result->fetch_assoc();
         $response['login'] = $row['login'];
-
+        $response['user_id'] = $row['user_id']; // Добавлено возвращение user_id
     } else {
         // "Нет такого пользователя";
         $response['success'] = false;

@@ -17,7 +17,7 @@ $email = $data['email'];
 // Подготавливаем ответ
 $response = [
     'success' => true,
-    'user_found' => true,
+    'user_registr' => true,
 ];
 
 // Формируем SQL-запрос
