@@ -24,6 +24,7 @@
       </div>
       <button type="submit">Войти</button>
     </form>
+    <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
   </div>
 </template>
 
@@ -35,16 +36,17 @@ export default {
       password: '',
       rememberMe: false,
       showPassword: false,
+      errorMessage: ''
     };
   },
   methods: {
     async loginUser() {
       try {
         const data = JSON.stringify({
-          Login: this.login,
-          Password: this.password
+          login: this.login, // Исправлено на правильный регистр
+          password: this.password // Исправлено на правильный регистр
         });
-        const response = await fetch('http://localhost/X-men/back/login.php/', {
+        const response = await fetch('http://localhost/X-men/back/login.php', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -54,13 +56,21 @@ export default {
         const answer = await response.json();
 
         // Перенаправление на страницу /board после успешной аутентификации
-        if (response.ok) {
-          this.$router.push({ name: 'BoardPage', params: { login: this.login } });
+        if (response.ok && answer.success && answer.user_found) {
+          // Сохраняем токен в localStorage, если необходимо
+          localStorage.setItem('userid', answer.user_id);
+          this.$router.push({ name: 'BoardPage', params: { userid: answer.user_id } });
         } else {
-          console.log(answer.error); // Обработка ошибок входа
+          // Обработка ошибок входа
+          if (answer.error) {
+            this.errorMessage = answer.error;
+          } else {
+            this.errorMessage = 'Произошла ошибка входа. Пожалуйста, попробуйте снова.';
+          }
         }
       } catch (err) {
         console.error('Ошибка:', err);
+        this.errorMessage = 'Произошла ошибка входа. Пожалуйста, попробуйте снова.';
       }
     },
     toggleShowPassword() {
@@ -69,6 +79,7 @@ export default {
   }
 };
 </script>
+
 
 <style>
 .form-container {

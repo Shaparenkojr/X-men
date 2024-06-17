@@ -20,7 +20,8 @@ const routes = [
     path: '/board',
     name: 'BoardPage',
     component: BoardPage,
-    meta: { requiresAuth: true } // Добавляем мета-информацию, чтобы защитить этот маршрут
+    meta: { requiresAuth: true },
+    props: true // Добавлено props: true для передачи параметров как пропсов
   }
 ];
 
@@ -34,7 +35,7 @@ router.beforeEach((to, from, next) => {
   // Проверяем, требует ли маршрут аутентификации
   if (to.matched.some(record => record.meta.requiresAuth)) {
     // Если пользователь не аутентифицирован, перенаправляем его на страницу входа
-    if (!localStorage.getItem('token')) {
+    if (!localStorage.getItem('userid')) {
       next('/login');
     } else {
       next(); // Продолжаем навигацию
@@ -45,35 +46,3 @@ router.beforeEach((to, from, next) => {
 });
 
 export default router;
-
-
-// import { createRouter, createWebHistory } from 'vue-router';
-// import LoginForm from '@/components/LoginForm.vue';
-// import RegistrationForm from '@/components/RegistrationForm.vue';
-// import BoardPage from '@/components/BoardPage.vue';
-
-// const routes = [
-//   {
-//     path: '/',
-//     redirect: '/login'
-//   },
-//   {
-//     path: '/login',
-//     component: LoginForm
-//   },
-//   {
-//     path: '/register',
-//     component: RegistrationForm
-//   },
-//   {
-//     path: '/board',
-//     component: BoardPage
-//   }
-// ];
-
-// const router = createRouter({
-//   history: createWebHistory(),
-//   routes
-// });
-
-// export default router;
