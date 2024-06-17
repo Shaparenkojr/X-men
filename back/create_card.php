@@ -1,21 +1,25 @@
-<?php
-header('Content-Type: application/json');
-require 'config.php';
+<?php 
+header('Access-Control-Allow-Methods: POST, GET'); 
+header('Access-Control-Allow-Headers: Content-type'); 
+header('Access-Control-Allow-Origin: http://localhost:3000'); 
+header('Content-Type: application/json'); 
 
-$data = json_decode(file_get_contents('php://input'), true);
+require 'db.php'; 
 
-$description = $data['description'];
-$color = $data['color'];
-$column_id = $data['column_id'];
+$data = json_decode(file_get_contents('php://input'), true); 
 
-$conn = getDB();
-$sql = "INSERT INTO cards (description, color, column_id) VALUES ('$description', '$color', $column_id)";
+$title = $data['column_name']; 
+$user_id = $data['user_id'];  // Получение user_id
+$color = json_encode(['#d9d9d9', '#d9d9d9', '#d9d9d9']); 
 
-if ($conn->query($sql) === TRUE) {
-    echo json_encode(["id" => $conn->insert_id, "success" => true]);
-} else {
-    echo json_encode(["error" => $conn->error]);
-}
+$conn = getDB(); 
+$sql = "INSERT INTO `column` (user_id, column_name, color) VALUES ('$user_id', '$title', '$color')";  // Вставка user_id
 
-$conn->close();
+if ($conn->query($sql) === TRUE) { 
+    echo json_encode(["id" => $conn->insert_id]); 
+} else { 
+    echo json_encode(["error" => $conn->error]); 
+} 
+
+$conn->close(); 
 ?>
