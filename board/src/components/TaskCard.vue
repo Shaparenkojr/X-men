@@ -1,11 +1,11 @@
 <template>
   <div class="card" :style="{ backgroundColor: card.color, color: textColor }">
     <div v-if="!isEditMode" class="card-header">
-      <span @dblclick="toggleEditMode" class="card-title">{{ card.title || 'Название' }}</span>
+      <span @dblclick="toggleEditMode" class="card-title">{{ displayTitle }}</span>
       <div @click="openColorPicker" class="color-box" :style="{ borderColor: borderColor }"></div>
     </div>
     <div v-if="isEditMode" class="card-header">
-      <input v-model="localTitle" @blur="saveCard" @keydown.enter="saveCard" placeholder="Введите название" class="card-input" />
+      <input v-model="localTitle" @blur="saveCard" @keydown.enter="saveCard" placeholder="New card" class="card-input" />
     </div>
     <div v-if="!isEditMode" class="card-description" @dblclick="toggleEditMode">
       <span v-html="formattedDescription"></span>
@@ -44,8 +44,8 @@ export default {
   data() {
     return {
       isEditMode: false,
-      localTitle: this.card.title,
-      localDescription: this.card.description,
+      localTitle: this.card.name,
+      localDescription: this.card.text,
       showColorPicker: false,
       availableColors: [
         '#666666', '#66664D', '#9900B3', '#991AFF', '#FF4D4D', '#B33300', '#999966', '#CC9999',
@@ -59,46 +59,31 @@ export default {
   methods: {
     toggleEditMode() {
       this.isEditMode = !this.isEditMode;
+      if (this.isEditMode && this.localTitle === 'Новая карточка') {
+        this.localTitle = '';
+      }
     },
     async saveCard() {
-      const updatedCard = {
-        ...this.card,
-        title: this.localTitle,
-        description: this.localDescription,
-      };
+      const cardData = { ...this.card, name: this.localTitle, text: this.localDescription };
       try {
         const response = await fetch('http://localhost/X-men/back/update_card.php', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(updatedCard),
+          body: JSON.stringify(cardData),
         });
         const data = await response.json();
         if (data.success) {
-          this.$emit('updateCard', updatedCard);
+          this.$emit('updateCard', cardData);
         }
         this.isEditMode = false;
       } catch (err) {
         console.error('Ошибка:', err);
       }
     },
-    async deleteCard() {
-      try {
-        const response = await fetch('http://localhost/X-men/back/delete_card.php', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ id: this.card.id }),
-        });
-        const data = await response.json();
-        if (data.success) {
-          this.$emit('deleteCard');
-        }
-      } catch (err) {
-        console.error('Ошибка:', err);
-      }
+    deleteCard() {
+      this.$emit('deleteCard');
     },
     openColorPicker() {
       this.showColorPicker = true;
@@ -106,8 +91,25 @@ export default {
     closeColorPicker() {
       this.showColorPicker = false;
     },
-    selectColor(color) {
-      this.$emit('changeColor', color);
+    async selectColor(color) {
+      const cardData = { ...this.card, color: color };
+      try {
+        const response = await fetch('http://localhost/X-men/back/update_card.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(cardData),
+        });
+        const data = await response.json();
+        if (data.success) {
+          this.$emit('updateCard', cardData);
+        } else {
+          console.error('Ошибка при изменении цвета карточки:', data.error || 'Неизвестная ошибка');
+        }
+      } catch (err) {
+        console.error('Ошибка при изменении цвета карточки:', err);
+      }
       this.closeColorPicker();
     },
     newLine() {
@@ -134,12 +136,15 @@ export default {
     formattedDescription() {
       return this.localDescription ? this.localDescription.replace(/\n/g, '<br/>') : 'Описание<br/><i>Введите двойным кликом</i>';
     },
+    displayTitle() {
+      return this.localTitle || 'New card';
+    },
   },
   watch: {
     card: {
       handler(newVal) {
-        this.localTitle = newVal.title;
-        this.localDescription = newVal.description;
+        this.localTitle = newVal.name;
+        this.localDescription = newVal.text;
       },
       deep: true,
     },

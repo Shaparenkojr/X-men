@@ -10,23 +10,17 @@
         </div>
         <div class="user-info">
           <div class="user-details">
-            <div class="user-name">{{ $route.params.login }}</div>
-            <img src="../icons/logout.svg" alt="Logout" class="logout-icon" onclick="logout()">
+            <div class="user-name">{{ loggedInUser }}</div>
+            <img src="../icons/logout.svg" alt="Logout" class="logout-icon" @click="logout">
           </div>
         </div>
       </div>
     </div>
-    <draggable v-model="columns" :disabled="!isEditMode" @end="updateOrder" group="columns" class="board-columns">
+    <draggable v-model="columns" :disabled="!isEditMode" @end="updateOrder" group="columns" class="board-columns" itemKey="id">
       <template #item="{ element, index }">
-        <TaskColumn
-          :key="element.id"
-          :column="element"
-          :index="index"
-          @updateColumn="updateColumn(index, $event)"
-          @deleteColumn="deleteColumn(index)"
-          @updateCards="updateCards(index, $event)"
-          @changeColumnColor="changeColumnColor(index, $event)"
-        />
+        <TaskColumn :key="element.column_id" :column="element" :index="index"
+                    @updateColumn="updateColumn(index, $event)" @deleteColumn="deleteColumn(index)"
+                    @updateCards="updateCards(index, $event)" />
       </template>
     </draggable>
   </div>
@@ -35,6 +29,7 @@
 <script>
 import TaskColumn from './TaskColumn.vue';
 import draggable from 'vuedraggable';
+import axios from 'axios';
 
 export default {
   name: 'BoardPage',
@@ -46,27 +41,53 @@ export default {
     return {
       columns: [],
       isEditMode: false,
-      loggedInUser: "", // Инициализируем логин пользователя пустой строкой
+      loggedInUser: null,
     };
   },
   async created() {
+    await this.fetchUserData();
     await this.fetchColumns();
-    this.fetchUserData(); // Вызываем метод получения данных о пользователе при создании компонента
   },
   methods: {
-    async fetchColumns() {
-      try {
-        const response = await fetch('http://localhost/X-men/back/get_columns.php');
-        const data = await response.json();
-        this.columns = data;
-      } catch (err) {
-        console.error('Ошибка:', err);
-      }
+    updateCards(index, updatedCards) {
+      this.columns[index].cards = updatedCards;
     },
+    async createCard() {
+      const newCard = {
+          id: Date.now(),
+          title: 'New Card',
+          content: '',
+          color: '#666666', // Default color for new cards
+        };
+        try {
+          // Add new card locally
+          this.localCards.push(newCard);
+          // Emit an event to update cards in the parent component
+          this.$emit('updateCards', this.localCards);
+        } catch (error) {
+          console.error('Error creating card:', error);
+        }
+      },
+  
+      onCreateCard(columnId) {
+          const cardData = {
+              title: this.newCardTitle,
+              description: this.newCardDescription
+          };
+          this.createCard(columnId, cardData);
+      },
     async createColumn() {
+      if (!this.loggedInUser) {
+        console.error('Ошибка: не удалось получить идентификатор пользователя.');
+        return;
+      }
+
       const newColumn = {
-        title: 'New Column',
+        column_name: 'New Column',
+        user_id: localStorage.getItem('userid'),
+        color: JSON.stringify(['#d9d9d9', '#d9d9d9', '#d9d9d9']),
       };
+
       try {
         const response = await fetch('http://localhost/X-men/back/create_column.php', {
           method: 'POST',
@@ -75,15 +96,19 @@ export default {
           },
           body: JSON.stringify(newColumn),
         });
+
         const data = await response.json();
+
         if (data.id) {
           newColumn.id = data.id;
           newColumn.cards = [];
-          newColumn.colors = ['#d9d9d9', '#d9d9d9', '#d9d9d9'];
+          newColumn.color = ['#d9d9d9', '#d9d9d9', '#d9d9d9']; 
           this.columns.push(newColumn);
+        } else {
+          console.error('Ошибка при создании колонки:', data.error || 'Неизвестная ошибка');
         }
       } catch (err) {
-        console.error('Ошибка:', err);
+        console.error('Ошибка при создании колонки:', err);
       }
     },
     async deleteColumn(index) {
@@ -101,7 +126,7 @@ export default {
           this.columns.splice(index, 1);
         }
       } catch (err) {
-        console.error('Ошибка:', err);
+        console.error('Ошибка при удалении колонки:', err);
       }
     },
     toggleEditMode() {
@@ -110,23 +135,85 @@ export default {
     updateOrder() {
       // handle drag and drop reorder
     },
+    async updateColumn(index, updatedColumn) {
+    this.columns = this.columns.map((column, i) =>
+      i === index ? { ...column, ...updatedColumn } : column
+    );
+
+    // Преобразуем массив `color` в JSON-строку
+    const color = JSON.stringify(updatedColumn.color);
+
+    // Отправляем изменения на сервер
+    try {
+      const response = await axios.post('http://localhost/X-men/back/update_column.php', {
+        id: updatedColumn.column_id,
+        column_name: updatedColumn.column_name,
+        color: color // Передаем цвет как JSON-строку
+      });
+
+      if (!response.data.success) {
+        throw new Error('Ошибка базы данных: ' + response.data.error);
+      }
+      console.log('Колонка успешно обновлена.');
+    } catch (error) {
+      console.error('Ошибка при обновлении колонки:', error.message);
+      alert('Не удалось обновить колонку. Попробуйте снова позже.');
+    }
+  },
+  
+    logout() {
+      sessionStorage.removeItem('loggedInUser');
+      localStorage.removeItem('userid');
+      localStorage.removeItem('username');
+      this.loggedInUser = null;
+      this.$router.push('/login');
+    },
     async fetchUserData() {
       try {
-        // Отправляем запрос на сервер для получения данных о текущем пользователе
-        const response = await fetch("http://localhost/X-men/back/get_user_data.php");
+        const response = await fetch("http://localhost/X-men/back/login.php", {
+          method: 'GET',
+          credentials: 'include',
+        });
         const data = await response.json();
-        this.loggedInUser = data.username; // Устанавливаем логин пользователя в полученное значение
+
+        if (data.success && data.user_found) {
+          this.loggedInUser = data.login;
+          sessionStorage.setItem('loggedInUser', this.loggedInUser);
+        } else {
+          console.error('Ошибка при получении данных о пользователе:', data);
+        }
       } catch (error) {
-        console.error("Ошибка:", error);
+        console.error("Ошибка при получении данных о пользователе:", error);
       }
     },
-    logout() {
-      // Реализуйте метод для выхода из системы
-      console.log('Пользователь вышел из системы');
-    },
+    async fetchColumns() {
+      try {
+        const response = await fetch('http://localhost/X-men/back/get_columns.php');
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        const data = await response.json();
+        this.columns = data.map(column => {
+          if (typeof column.color === 'string') {
+            column.color = JSON.parse(column.color);
+          }
+          return column;
+        });
+      } catch (err) {
+        console.error('Ошибка при загрузке колонок:', err);
+      }
+    }
+  },
+  mounted() {
+    const storedUserId = localStorage.getItem('username');
+    if (storedUserId) {
+      this.loggedInUser = storedUserId;
+    }
   },
 };
 </script>
+
+
 
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
@@ -154,7 +241,8 @@ export default {
   margin-bottom: 20px;
 }
 
-.create-column-btn, .edit-columns-btn {
+.create-column-btn,
+.edit-columns-btn {
   padding: 10px 20px;
   margin-top: 25px;
   border-radius: 8px;
@@ -248,43 +336,52 @@ export default {
 }
 
 .user-details {
-  width: 241px; /* Возвращаем ширину блока к предыдущему значению */
+  width: 241px;
+  /* Возвращаем ширину блока к предыдущему значению */
   height: 45px;
-  padding: 5px 10px; /* Уменьшаем отступы внутри блока */
-  border-radius: 12px; /* Уменьшаем радиус закругления */
+  padding: 5px 10px;
+  /* Уменьшаем отступы внутри блока */
+  border-radius: 12px;
+  /* Уменьшаем радиус закругления */
   overflow: hidden;
   border: 2px solid #295EA9;
   background: #fff;
   display: flex;
-  justify-content: space-between; /* Изменяем выравнивание на центральное */
+  justify-content: space-between;
+  /* Изменяем выравнивание на центральное */
   align-items: center;
 }
 
 .user-name {
-  text-align: center; /* Выравниваем текст по центру */
+  text-align: center;
+  /* Выравниваем текст по центру */
   color: #032A4E;
   font-size: 16px;
   font-family: Inter, sans-serif;
   font-weight: 700;
   word-wrap: break-word;
-  flex: 1; /* Занимаем оставшееся пространство */
+  flex: 1;
+  /* Занимаем оставшееся пространство */
 }
 
 .logout-icon {
   width: 20px;
   height: 20px;
-  cursor: pointer; /* Делаем курсор указателем при наведении */
+  cursor: pointer;
+  /* Делаем курсор указателем при наведении */
   /* Изменяем позиционирование иконки */
-  margin-right: 5px; /* Отодвигаем иконку от правого края */
+  margin-right: 5px;
+  /* Отодвигаем иконку от правого края */
 }
 
 
-.fixed-bar{
+.fixed-bar {
   position: fixed;
   top: 0;
   left: 5%;
-  z-index: 1000; /* Устанавливаем z-index, чтобы контроли оставались поверх других элементов */
-  padding: 10px; /* Добавляем отступы для улучшения визуального восприятия */
+  z-index: 1000;
+  /* Устанавливаем z-index, чтобы контроли оставались поверх других элементов */
+  padding: 10px;
+  /* Добавляем отступы для улучшения визуального восприятия */
 }
-
 </style>

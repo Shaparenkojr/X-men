@@ -1,13 +1,13 @@
 <template>
   <div class="form-container">
     <div class="form-header">Вход</div>
-    <form @submit.prevent="loginUser" class="form">
+    <form @submit.prevent="handleLogin" class="form">
       <div class="form-group">
         <label for="login">Логин или E-mail</label>
         <input type="text" id="login" v-model="login" required>
       </div>
       <div class="form-group">
-        <label for="pass">Пароль</label>
+        <label for="password">Пароль</label>
         <div class="password-input">
           <input :type="showPassword ? 'text' : 'password'" id="password" v-model="password" required>
           <div class="password-icon" @click="toggleShowPassword">
@@ -24,6 +24,7 @@
       </div>
       <button type="submit">Войти</button>
     </form>
+    <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
   </div>
 </template>
 
@@ -34,41 +35,53 @@ export default {
       login: '',
       password: '',
       rememberMe: false,
-      showPassword: false,
+      error: null,
     };
   },
+  mounted() {
+    const rememberedLogin = localStorage.getItem('login');
+    if (rememberedLogin) {
+      this.login = rememberedLogin;
+    }
+  },
   methods: {
-    async loginUser() {
+    async handleLogin() {
+      this.error = null;
       try {
-        const data = JSON.stringify({
-          Login: this.login,
-          Password: this.password
-        });
-        const response = await fetch('http://localhost/X-men/back/login.php/', {
+        const response = await fetch('http://localhost/X-men/back/login.php', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: data
+          body: JSON.stringify({
+            login: this.login,
+            password: this.password,
+          }),
+          credentials: 'include',
         });
-        const answer = await response.json();
 
-        // Перенаправление на страницу /board после успешной аутентификации
-        if (response.ok) {
-          this.$router.push({ name: 'BoardPage', params: { login: this.login } });
+        const data = await response.json();
+        if (data.success) {
+          if (this.rememberMe) {
+            localStorage.setItem('login', this.login);
+          } else {
+            localStorage.removeItem('login');
+          }
+          localStorage.setItem('userid', data.user_id); // Store user id
+          localStorage.setItem('username', data.login); // Store username
+
+          this.$router.push('/board');
         } else {
-          console.log(answer.error); // Обработка ошибок входа
+          this.error = data.error || 'Ошибка при входе';
         }
-      } catch (err) {
-        console.error('Ошибка:', err);
+      } catch (error) {
+        this.error = 'Ошибка при входе: ' + error.message;
       }
     },
-    toggleShowPassword() {
-      this.showPassword = !this.showPassword;
-    }
-  }
+  },
 };
 </script>
+
 
 <style>
 .form-container {
