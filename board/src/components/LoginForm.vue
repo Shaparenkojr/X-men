@@ -22,9 +22,9 @@
           Запомнить меня
         </label>
       </div>
+      <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div> <!-- Переместили сюда -->
       <button type="submit">Войти</button>
     </form>
-    <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
   </div>
 </template>
 
@@ -35,7 +35,8 @@ export default {
       login: '',
       password: '',
       rememberMe: false,
-      error: null,
+      errorMessage: null, // Поле для сообщения об ошибке
+      showPassword: false,
     };
   },
   mounted() {
@@ -46,7 +47,7 @@ export default {
   },
   methods: {
     async handleLogin() {
-      this.error = null;
+      this.errorMessage = null;
       try {
         const response = await fetch('http://localhost/X-men/back/login.php', {
           method: 'POST',
@@ -72,16 +73,18 @@ export default {
 
           this.$router.push('/board');
         } else {
-          this.error = data.error || 'Ошибка при входе';
+          this.errorMessage = data.error || 'Неверный логин или пароль'; // Сообщение об ошибке
         }
       } catch (error) {
-        this.error = 'Ошибка при входе: ' + error.message;
+        this.errorMessage = 'Ошибка при входе: ' + error.message;
       }
     },
+    toggleShowPassword() {
+      this.showPassword = !this.showPassword;
+    }
   },
 };
 </script>
-
 
 <style>
 .form-container {
@@ -154,20 +157,15 @@ input {
   display: flex;
   align-items: center;
   font-size: 18px;
-  /* Уменьшаем размер текста для метки "Запомнить меня" */
   font-family: Inter, sans-serif;
   font-weight: 600;
   margin-top: 10px;
-  /* Небольшой отступ сверху для выравнивания по вертикали */
 }
 
 .checkbox-label input {
   margin-right: 8px;
-  /* Увеличиваем отступ между чекбоксом и текстом */
   height: 18px;
-  /* Увеличиваем высоту чекбокса */
   width: 18px;
-  /* Увеличиваем ширину чекбокса */
 }
 
 button {
@@ -182,5 +180,14 @@ button {
   cursor: pointer;
   margin-top: 20px;
   border: none;
+}
+
+.error-message {
+  color: red;
+  font-size: 16px;
+  font-family: Inter, sans-serif;
+  font-weight: 600;
+  margin-bottom: 10px;
+  text-align: center;
 }
 </style>
