@@ -16,7 +16,6 @@
         </div>
       </div>
     </div>
-<<<<<<< HEAD
     <draggable v-model="columns" :disabled="!isEditMode" @end="updateOrder" group="columns" class="board-columns" itemKey="column_id">
     <template #item="{ element, index }">
       <TaskColumn :key="element.column_id" :column="element" :index="index"
@@ -26,15 +25,6 @@
                   @moveCard="moveCard($event)" />
     </template>
   </draggable>
-=======
-    <draggable v-model="columns" :disabled="!isEditMode" @end="updateOrder" group="columns" class="board-columns">
-      <template #item="{ element, index }">
-        <TaskColumn :key="element.id" :column="element" :index="index" @updateColumn="updateColumn(index, $event)"
-          @deleteColumn="deleteColumn(index)" @updateCards="updateCards(index, $event)"
-          @changeColumnColor="changeColumnColor(index, $event)" />
-      </template>
-    </draggable>
->>>>>>> 81e533cecec561b533b267be522fec6f26413a97
   </div>
 </template>
 
@@ -54,20 +44,11 @@ export default {
     return {
       columns: [],
       isEditMode: false,
-<<<<<<< HEAD
       loggedInUser: null,
     };
   },
   async created() {
     await this.fetchUserData();
-=======
-      loggedInUser: null, // Изменили инициализацию на null, чтобы правильно обработать загрузку данных пользователя
-    };
-  },
-  async created() {
-    await this.fetchUserData(); // Вызываем метод получения данных о пользователе при создании компонента
-    console.log(this.loggedInUser);
->>>>>>> 81e533cecec561b533b267be522fec6f26413a97
     await this.fetchColumns();
   },
   methods: {
@@ -84,7 +65,6 @@ export default {
         }
       }
     },
-<<<<<<< HEAD
     async updateColumn(index, updatedColumn) {
       this.columns = this.columns.map((column, i) =>
         i === index ? { ...column, ...updatedColumn } : column
@@ -142,23 +122,8 @@ export default {
         title: '',
         content: '',
         color: '#666666',
-=======
-    async createColumn() {
-      // Проверяем, что у нас есть идентификатор текущего пользователя
-      if (!this.loggedInUser) {
-        console.error('Ошибка: не удалось получить идентификатор пользователя.');
-        return;
-      }
-
-      // Подготавливаем данные для создания новой колонки
-      const newColumn = {
-        column_name: 'New Column', // Название колонки
-        user_id: this.loggedInUser, // Используем идентификатор текущего пользователя
->>>>>>> 81e533cecec561b533b267be522fec6f26413a97
       };
-
       try {
-<<<<<<< HEAD
         this.localCards.push(newCard);
         this.$emit('updateCards', this.localCards);
       } catch (error) {
@@ -186,9 +151,6 @@ export default {
       };
 
       try {
-=======
-        // Отправляем запрос на сервер для создания новой колонки
->>>>>>> 81e533cecec561b533b267be522fec6f26413a97
         const response = await fetch('http://localhost/X-men/back/create_column.php', {
           method: 'POST',
           headers: {
@@ -197,14 +159,9 @@ export default {
           body: JSON.stringify(newColumn),
         });
 
-<<<<<<< HEAD
-=======
-        // Получаем ответ от сервера и обрабатываем его
->>>>>>> 81e533cecec561b533b267be522fec6f26413a97
         const data = await response.json();
 
         if (data.id) {
-<<<<<<< HEAD
           newColumn.column_id = data.id;
           newColumn.cards = [];
           newColumn.color = ['#d9d9d9', '#d9d9d9', '#d9d9d9'];
@@ -214,20 +171,8 @@ export default {
         }
       } catch (err) {
         console.error('Ошибка при создании колонки:', err);
-=======
-          // Если создание колонки успешно, обновляем локальное состояние
-          newColumn.id = data.id;
-          newColumn.cards = [];
-          newColumn.colors = ['#d9d9d9', '#d9d9d9', '#d9d9d9'];
-          this.columns.push(newColumn); // Добавляем новую колонку в локальный массив columns
-        }
-      } catch (err) {
-        // Ловим и выводим ошибку, если что-то пошло не так
-        console.error('Ошибка:', err);
->>>>>>> 81e533cecec561b533b267be522fec6f26413a97
       }
     },
-
     async deleteColumn(index) {
       const column = this.columns[index];
       try {
@@ -276,7 +221,6 @@ export default {
     },
     async fetchUserData() {
       try {
-<<<<<<< HEAD
         const response = await fetch("http://localhost/X-men/back/login.php", {
           method: 'GET',
           credentials: 'include',
@@ -289,12 +233,6 @@ export default {
         } else {
           console.error('Ошибка при получении данных о пользователе:', data);
         }
-=======
-        // Отправляем запрос на сервер для получения данных о текущем пользователе
-        const response = await fetch("http://localhost/X-men/back/login.php");
-        const data = await response.json();
-        this.loggedInUser = data.user_id; // Устанавливаем идентификатор пользователя в полученное значение
->>>>>>> 81e533cecec561b533b267be522fec6f26413a97
       } catch (error) {
         console.error("Ошибка при получении данных о пользователе:", error);
       }
@@ -517,18 +455,10 @@ export default {
 .fixed-bar {
   position: fixed;
   top: 0;
-<<<<<<< HEAD
   left: 4%;
-=======
-  left: 5%;
->>>>>>> 81e533cecec561b533b267be522fec6f26413a97
   z-index: 1000;
   /* Устанавливаем z-index, чтобы контроли оставались поверх других элементов */
   padding: 10px;
   /* Добавляем отступы для улучшения визуального восприятия */
 }
-<<<<<<< HEAD
 </style>
-=======
-</style>
->>>>>>> 81e533cecec561b533b267be522fec6f26413a97
