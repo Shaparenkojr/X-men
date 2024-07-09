@@ -25,6 +25,7 @@
       <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div> <!-- Переместили сюда -->
       <button type="submit">Войти</button>
     </form>
+    <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
   </div>
 </template>
 
@@ -37,6 +38,7 @@ export default {
       rememberMe: false,
       errorMessage: null, // Поле для сообщения об ошибке
       showPassword: false,
+      errorMessage: ''
     };
   },
   mounted() {
@@ -49,6 +51,13 @@ export default {
     async handleLogin() {
       this.errorMessage = null;
       try {
+<<<<<<< HEAD
+=======
+        const data = JSON.stringify({
+          login: this.login, // Исправлено на правильный регистр
+          password: this.password // Исправлено на правильный регистр
+        });
+>>>>>>> 81e533cecec561b533b267be522fec6f26413a97
         const response = await fetch('http://localhost/X-men/back/login.php', {
           method: 'POST',
           headers: {
@@ -61,6 +70,7 @@ export default {
           credentials: 'include',
         });
 
+<<<<<<< HEAD
         const data = await response.json();
         if (data.success) {
           if (this.rememberMe) {
@@ -77,6 +87,24 @@ export default {
         }
       } catch (error) {
         this.errorMessage = 'Ошибка при входе: ' + error.message;
+=======
+        // Перенаправление на страницу /board после успешной аутентификации
+        if (response.ok && answer.success && answer.user_found) {
+          // Сохраняем токен в localStorage, если необходимо
+          localStorage.setItem('userid', answer.user_id);
+          this.$router.push({ name: 'BoardPage', params: { userid: answer.user_id } });
+        } else {
+          // Обработка ошибок входа
+          if (answer.error) {
+            this.errorMessage = answer.error;
+          } else {
+            this.errorMessage = 'Произошла ошибка входа. Пожалуйста, попробуйте снова.';
+          }
+        }
+      } catch (err) {
+        console.error('Ошибка:', err);
+        this.errorMessage = 'Произошла ошибка входа. Пожалуйста, попробуйте снова.';
+>>>>>>> 81e533cecec561b533b267be522fec6f26413a97
       }
     },
     toggleShowPassword() {
@@ -85,6 +113,7 @@ export default {
   },
 };
 </script>
+
 
 <style>
 .form-container {

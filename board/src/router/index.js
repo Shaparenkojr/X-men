@@ -21,7 +21,11 @@ const routes = [
     name: 'BoardPage',
     component: BoardPage,
     meta: { requiresAuth: true },
+<<<<<<< HEAD
     props: ({ userId: localStorage.getItem('userid') })
+=======
+    props: true // Добавлено props: true для передачи параметров как пропсов
+>>>>>>> 81e533cecec561b533b267be522fec6f26413a97
   }
 ];
 
@@ -32,8 +36,13 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   if (to.matched.some(record => record.meta.requiresAuth)) {
+<<<<<<< HEAD
     const userId = localStorage.getItem('userid');
     if (!userId) {
+=======
+    // Если пользователь не аутентифицирован, перенаправляем его на страницу входа
+    if (!localStorage.getItem('userid')) {
+>>>>>>> 81e533cecec561b533b267be522fec6f26413a97
       next('/login');
     } else {
       next();
