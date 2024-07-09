@@ -74,6 +74,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $response['error'] = "Пользователь не авторизован";
     }
+    
+    // Если нужно отправить user_id, добавляем его в ответ
+    if ($response['success']) {
+        $response['user_id'] = (int)$row['user_id'];
+    }
+
+    $stmt->close();
 }
 
 echo json_encode($response);
