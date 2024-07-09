@@ -3,7 +3,7 @@
     <div class="column-header">
       <div class="color-circles">
         <div
-          v-for="(color, index) in column.colors"
+          v-for="(color, index) in lastSelectedColors"
           :key="index"
           :style="{ backgroundColor: color }"
           class="color-circle"
@@ -17,7 +17,8 @@
     <div :style="{ backgroundColor: backgroundColor }" class="column-body">
       <div class="column-title" :style="{ color: textColor }">
         <div @dblclick="toggleEditMode">
-          <span v-if="!isEditMode">{{ localTitle }}</span>
+          <span v-if="!isEditMode && !localTitle">{{ 'New Column' }}</span>
+          <span v-if="!isEditMode && localTitle">{{ localTitle }}</span>
           <input
             v-else
             v-model="localTitle"
@@ -30,7 +31,7 @@
       <button class="create-card-btn" @click="createCard">
         <span class="btn-text">Создать карточку</span>
       </button>
-      <draggable v-model="localCards" group="cards" class="cards" @change="updateCardsOrder">
+      <draggable v-model="localCards" group="cards" itemKey="id" class="cards" @end="updateCardOrder">
         <template #item="{ element, index }">
           <TaskCard
             :card="element"
@@ -76,14 +77,24 @@ export default {
     draggable,
   },
   props: {
-    column: Object,
+    column: {
+      type: Object,
+      required: true,
+      default: () => ({
+        column_id: null,
+        column_name: 'Новая колонка',
+        cards: [],
+        color: ['#d9d9d9', '#d9d9d9', '#d9d9d9'],
+      }),
+    },
     index: Number,
   },
   data() {
     return {
       isEditMode: false,
-      localTitle: this.column.title,
-      localCards: [...this.column.cards],
+      localTitle: this.column.column_name || 'Новая колонка',
+      localCards: this.column.cards || [],
+      lastSelectedColors: (this.column.color && this.column.color.slice(-3)) || ['#d9d9d9', '#d9d9d9', '#d9d9d9'],
       showColorPicker: false,
       showDeleteConfirmation: false,
       availableColors: [
@@ -91,50 +102,189 @@ export default {
         '#CCCC00', '#999933', '#809980', '#4D8066', '#4DB380', '#B33300', '#E64D66', '#E6331A',
         '#FF5733', '#B34D4D', '#E6B3B3', '#FF1A66', '#E666FF', '#FF3380', '#FF33FF', '#1AB399',
         '#4DB3FF', '#66991A', '#99E6E6', '#80B300', '#33FFFF', '#00E680', '#33FFCC', '#66E64D',
-        '#FFFF33', '#99FF99', '#E6FF80', '#FFB399', '#FFB3E6'
+        '#FFFF33', '#99FF99', '#E6FF80', '#FFB399', '#FFB3E6', '#FFD1DC', '#FFE6CC', '#FFFFCC'
       ],
     };
+  },
+  computed: {
+    backgroundColor() {
+      return this.lastSelectedColors[0]; // Использует первый цвет из последних выбранных
+    },
+    textColor() {
+      return this.getContrastingTextColor(this.lastSelectedColors[0]);
+    },
   },
   methods: {
     toggleEditMode() {
       this.isEditMode = !this.isEditMode;
     },
-    saveColumn() {
-      this.$emit('updateColumn', this.localTitle);
-      this.isEditMode = false;
+    checkMove(event) {
+      return event.from !== event.to;
     },
-    confirmDeleteColumn() {
-      this.showDeleteConfirmation = true;
+    onCardDrop(event) {
+      if (event.from !== event.to) {
+        this.$emit('moveCard', { card: event.item, fromColumn: event.from.dataset.columnId, toColumn: event.to.dataset.columnId });
+      }
     },
-    hideDeleteConfirmation() {
-      this.showDeleteConfirmation = false;
+    async onDragEnd() {
+    const updatedCards = this.localCards.map((card, index) => ({
+      ...card,
+      order: index,
+      column_id: this.column.column_id,
+    }));
+
+    try {
+      await this.$parent.updateCardsOrder(this.column.column_id, updatedCards);
+    } catch (error) {
+      console.error('Ошибка при обновлении порядка карточек:', error);
+    }
+  },
+    async saveColumn() {
+      try {
+        this.isEditMode = false;
+        const updatedColumn = {
+          column_id: this.column.column_id,
+          column_name: this.localTitle,
+          color: this.lastSelectedColors,
+        };
+        // Emit the updated column data to the parent component
+        this.$emit('updateColumn', updatedColumn);
+        // Immediately save the column name change to the backend
+        const response = await fetch('http://localhost/X-men/back/update_column.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updatedColumn),
+        });
+        const data = await response.json();
+        if (data.success) {
+          console.log('Название колонки успешно обновлено');
+        } else {
+          console.error('Ошибка при обновлении названия колонки:', data.error);
+        }
+      } catch (error) {
+        console.error('Ошибка при сохранении колонки:', error);
+      }
     },
-    deleteColumn() {
-      this.$emit('deleteColumn');
-    },
-    createCard() {
+    async createCard() {
       const newCard = {
-        id: Date.now(),
-        description: '',
-        color: '#666666',
+        card_id: Date.now(),
+        name: '',
+        text: '',
+        color: '#666666', // Default color for new cards
+        column_id: this.column.column_id, // добавляем column_id для привязки карточки к колонке
+        order: this.localCards.length // порядок карточки в колонке
       };
-      this.localCards.unshift(newCard);
-      this.$emit('updateCards', this.localCards);
+      try {
+        // Отправляем новый объект карточки на сервер для добавления в БД
+        const response = await fetch('http://localhost/X-men/back/create_card.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(newCard),
+        });
+        const data = await response.json();
+        if (data.id) {
+          // Обновляем локальный id новосозданной карточки
+          newCard.card_id = data.id;
+          // Add new card locally
+          this.localCards.push(newCard);
+          // Emit an event to update cards in the parent component
+          this.$emit('updateCards', this.localCards);
+        } else {
+          console.error('Ошибка при создании карточки:', data.error || 'Неизвестная ошибка');
+        }
+      } catch (error) {
+        console.error('Error creating card:', error);
+      }
     },
-    updateCard(cardIndex, newCard) {
-      this.localCards.splice(cardIndex, 1, newCard);
-      this.$emit('updateCards', this.localCards);
+    async updateCard(cardIndex, newCard) {
+        try {
+          const response = await fetch('http://localhost/X-men/back/update_card.php', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(newCard),
+          });
+          const data = await response.json();
+          if (data.success) {
+            this.localCards.splice(cardIndex, 1, newCard);
+            this.$emit('updateCards', this.localCards);
+          } else {
+            console.error('Failed to update card:', data.error || 'Unknown error');
+          }
+        } catch (err) {
+          console.error('Error updating card:', err);
+        }
+      },
+      async deleteCard(cardIndex) {
+        const cardId = this.localCards[cardIndex].card_id;
+        try {
+          const response = await fetch('http://localhost/X-men/back/delete_card.php', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ id: cardId }),
+          });
+          const data = await response.json();
+          if (data.success) {
+            this.localCards.splice(cardIndex, 1);
+            this.$emit('updateCards', this.localCards);
+          }
+        } catch (err) {
+          console.error('Ошибка:', err);
+        }
+      },
+    async updateCardOrder() {
+      const updatedCards = this.localCards.map((card, index) => ({
+        card_id: card.card_id,
+        column_id: this.column.column_id,
+        order: index
+      }));
+
+      try {
+        const response = await fetch('http://localhost/X-men/back/update_card_order.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updatedCards),
+        });
+        const data = await response.json();
+        if (data.success) {
+          console.log('Card order successfully updated');
+          this.$emit('updateCards', this.localCards);
+        } else {
+          console.error('Error updating card order:', data.error);
+        }
+      } catch (error) {
+        console.error('Network Error:', error);
+      }
     },
-    deleteCard(cardIndex) {
-      this.localCards.splice(cardIndex, 1);
-      this.$emit('updateCards', this.localCards);
-    },
-    updateCardsOrder() {
-      this.$emit('updateCards', this.localCards);
-    },
-    changeCardColor(cardIndex, color) {
-      this.localCards[cardIndex].color = color;
-      this.$emit('updateCards', this.localCards);
+    async changeCardColor(cardIndex, color) {
+      const card = this.localCards[cardIndex];
+      card.color = color;
+      try {
+        const response = await fetch('http://localhost/X-men/back/update_card.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(card),
+        });
+        const data = await response.json();
+        if (data.success) {
+          this.$emit('updateCards', this.localCards);
+        } else {
+          console.error('Ошибка при изменении цвета карточки:', data.error || 'Неизвестная ошибка');
+        }
+      } catch (err) {
+        console.error('Ошибка при изменении цвета карточки:', err);
+      }
     },
     openColorPicker() {
       this.showColorPicker = true;
@@ -143,36 +293,56 @@ export default {
       this.showColorPicker = false;
     },
     selectColor(color) {
-      this.$emit('changeColumnColor', color);
-      this.closeColorPicker();
+      this.lastSelectedColors = [color, ...this.lastSelectedColors.slice(0, 2)];
+      this.showColorPicker = false;
+      this.$emit('changeColumnColor', this.index, color);
+      this.saveColumn(); 
     },
-    calculateBrightness(color) {
-      const r = parseInt(color.substring(1, 3), 16);
-      const g = parseInt(color.substring(3, 5), 16);
-      const b = parseInt(color.substring(5, 7), 16);
-      return (r * 299 + g * 587 + b * 114) / 1000;
-    }
-  },
-  computed: {
-    backgroundColor() {
-      return this.column.colors[0];
+    confirmDeleteColumn() {
+      this.showDeleteConfirmation = true;
     },
-    textColor() {
-      const brightness = this.calculateBrightness(this.backgroundColor);
-      return brightness > 125 ? 'black' : 'white';
+    hideDeleteConfirmation() {
+      this.showDeleteConfirmation = false;
     },
-  },
-  watch: {
-    column: {
-      handler(newVal) {
-        this.localTitle = newVal.title;
-        this.localCards = [...newVal.cards];
+    async deleteColumn() {
+      try {
+        const response = await fetch('http://localhost/X-men/back/delete_column.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id: this.column.column_id }),
+        });
+        const data = await response.json();
+        if (data.success) {
+          this.$emit('deleteColumn', this.index);
+        }
+      } catch (err) {
+        console.error('Ошибка при удалении колонки:', err);
+      } finally {
+        this.hideDeleteConfirmation();
+      }
+    },
+    getContrastingTextColor(backgroundColor) {
+        const color = backgroundColor.charAt(0) === '#' ? backgroundColor.substring(1, 7) : backgroundColor;
+        const r = parseInt(color.substring(0, 2), 16);
+        const g = parseInt(color.substring(2, 4), 16);
+        const b = parseInt(color.substring(4, 6), 16);
+        const uicolors = [r / 255, g / 255, b / 255];
+        const c = uicolors.map((col) => {
+          if (col <= 0.03928) {
+            return col / 12.92;
+          }
+          return Math.pow((col + 0.055) / 1.055, 2.4);
+        });
+        const L = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+        return L > 0.179 ? '#000000' : '#FFFFFF';
       },
-      deep: true,
     },
-  },
 };
 </script>
+
+
 
 <style scoped>
 .column {

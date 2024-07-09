@@ -18,7 +18,10 @@ const routes = [
   },
   {
     path: '/board',
-    component: BoardPage
+    name: 'BoardPage',
+    component: BoardPage,
+    meta: { requiresAuth: true },
+    props: ({ userId: localStorage.getItem('userid') })
   }
 ];
 
@@ -27,24 +30,17 @@ const router = createRouter({
   routes
 });
 
+router.beforeEach((to, from, next) => {
+  if (to.matched.some(record => record.meta.requiresAuth)) {
+    const userId = localStorage.getItem('userid');
+    if (!userId) {
+      next('/login');
+    } else {
+      next();
+    }
+  } else {
+    next();
+  }
+});
+
 export default router;
-
-
-// import { createRouter, createWebHistory } from 'vue-router';
-// import RegistrationForm from '@/components/RegistrationForm.vue';
-// import LoginForm from '@/components/LoginForm.vue';
-// import BoardPage from '@/components/BoardPage.vue';
-
-// const router = createRouter({
-//   history: createWebHistory(),
-//   routes: [
-//     { path: '/register', component: RegistrationForm },
-//     { path: '/login', component: LoginForm },
-//     { path: '/board', component: BoardPage },
-//     // Убираем маршрут для компонента App.vue
-//     // { path: '/', component: App },
-//     { path: '/', redirect: '/login' }, // Перенаправление на страницу входа по умолчанию
-//   ],
-// });
-
-// export default router;

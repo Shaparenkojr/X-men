@@ -52,7 +52,13 @@ export default {
         });
         const answer = await response.json();
         console.log(answer);
-        // Дополнительная логика обработки ответа от сервера
+        
+        if (answer.success) {
+          this.$router.push('/login');
+          alert('Вы успешно зарегистрированы!');
+        } else {
+          console.error('Ошибка регистрации:', answer.error);
+        }
       } catch (err) {
         console.error('Ошибка:', err);
       }
@@ -105,7 +111,7 @@ input {
   width: 100%;
   height: 40px;
   border-radius: 16px;
-  border: 2px solid #032A4E;
+  border: 2px солидный #032A4E;
   padding: 0 40px 0 10px;
   font-size: 16px;
   font-family: Inter, sans-serif;

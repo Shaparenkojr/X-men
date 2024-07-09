@@ -1,13 +1,13 @@
 <template>
   <div class="form-container">
     <div class="form-header">Вход</div>
-    <form @submit.prevent="loginUser" class="form">
+    <form @submit.prevent="handleLogin" class="form">
       <div class="form-group">
         <label for="login">Логин или E-mail</label>
         <input type="text" id="login" v-model="login" required>
       </div>
       <div class="form-group">
-        <label for="pass">Пароль</label>
+        <label for="password">Пароль</label>
         <div class="password-input">
           <input :type="showPassword ? 'text' : 'password'" id="password" v-model="password" required>
           <div class="password-icon" @click="toggleShowPassword">
@@ -22,6 +22,7 @@
           Запомнить меня
         </label>
       </div>
+      <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div> <!-- Переместили сюда -->
       <button type="submit">Войти</button>
     </form>
   </div>
@@ -34,35 +35,54 @@ export default {
       login: '',
       password: '',
       rememberMe: false,
+      errorMessage: null, // Поле для сообщения об ошибке
       showPassword: false,
     };
   },
+  mounted() {
+    const rememberedLogin = localStorage.getItem('login');
+    if (rememberedLogin) {
+      this.login = rememberedLogin;
+    }
+  },
   methods: {
-    async loginUser() {
+    async handleLogin() {
+      this.errorMessage = null;
       try {
-        const data = JSON.stringify({
-          Login: this.login,
-          Password: this.password
-        });
-        const response = await fetch('http://localhost/X-men/back/login.php/', {
+        const response = await fetch('http://localhost/X-men/back/login.php', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: data
-        })
-        // Вывод ответа от бэкенда в виде json
-        // Заменить на обработку ответа
-        const answer = await response.json();
-        console.log(answer);
-      } catch (err) {
-        console.error('Ошибка:', err);
+          body: JSON.stringify({
+            login: this.login,
+            password: this.password,
+          }),
+          credentials: 'include',
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          if (this.rememberMe) {
+            localStorage.setItem('login', this.login);
+          } else {
+            localStorage.removeItem('login');
+          }
+          localStorage.setItem('userid', data.user_id); // Store user id
+          localStorage.setItem('username', data.login); // Store username
+
+          this.$router.push('/board');
+        } else {
+          this.errorMessage = data.error || 'Неверный логин или пароль'; // Сообщение об ошибке
+        }
+      } catch (error) {
+        this.errorMessage = 'Ошибка при входе: ' + error.message;
       }
     },
     toggleShowPassword() {
       this.showPassword = !this.showPassword;
     }
-  }
+  },
 };
 </script>
 
@@ -137,20 +157,15 @@ input {
   display: flex;
   align-items: center;
   font-size: 18px;
-  /* Уменьшаем размер текста для метки "Запомнить меня" */
   font-family: Inter, sans-serif;
   font-weight: 600;
   margin-top: 10px;
-  /* Небольшой отступ сверху для выравнивания по вертикали */
 }
 
 .checkbox-label input {
   margin-right: 8px;
-  /* Увеличиваем отступ между чекбоксом и текстом */
   height: 18px;
-  /* Увеличиваем высоту чекбокса */
   width: 18px;
-  /* Увеличиваем ширину чекбокса */
 }
 
 button {
@@ -165,5 +180,14 @@ button {
   cursor: pointer;
   margin-top: 20px;
   border: none;
+}
+
+.error-message {
+  color: red;
+  font-size: 16px;
+  font-family: Inter, sans-serif;
+  font-weight: 600;
+  margin-bottom: 10px;
+  text-align: center;
 }
 </style>

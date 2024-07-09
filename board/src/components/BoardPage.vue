@@ -10,31 +10,29 @@
         </div>
         <div class="user-info">
           <div class="user-details">
-            <div class="user-name">User123</div>
-            <img src="../icons/logout.svg" alt="Logout" class="logout-icon" onclick="logout()">
+            <div class="user-name">{{ loggedInUser }}</div>
+            <img src="../icons/logout.svg" alt="Logout" class="logout-icon" @click="logout">
           </div>
         </div>
       </div>
     </div>
-    <draggable v-model="columns" :disabled="!isEditMode" @end="updateOrder" group="columns" class="board-columns">
-      <template #item="{ element, index }">
-        <TaskColumn
-          :key="element.id"
-          :column="element"
-          :index="index"
-          @updateColumn="updateColumn(index, $event)"
-          @deleteColumn="deleteColumn(index)"
-          @updateCards="updateCards(index, $event)"
-          @changeColumnColor="changeColumnColor(index, $event)"
-        />
-      </template>
-    </draggable>
+    <draggable v-model="columns" :disabled="!isEditMode" @end="updateOrder" group="columns" class="board-columns" itemKey="column_id">
+    <template #item="{ element, index }">
+      <TaskColumn :key="element.column_id" :column="element" :index="index"
+                  @updateColumn="updateColumn(index, $event)" 
+                  @deleteColumn="deleteColumn(index)"
+                  @updateCards="updateCards(index, $event)"
+                  @moveCard="moveCard($event)" />
+    </template>
+  </draggable>
   </div>
 </template>
+
 
 <script>
 import TaskColumn from './TaskColumn.vue';
 import draggable from 'vuedraggable';
+import axios from 'axios';
 
 export default {
   name: 'BoardPage',
@@ -44,81 +42,255 @@ export default {
   },
   data() {
     return {
-      columns: [
-        {
-          id: 1,
-          title: 'To Do',
-          cards: [
-            { id: 1, title: 'Task 1', description: 'Description 1', color: '#f4ae5b' },
-            { id: 2, title: 'Task 2', description: 'Description 2', color: '#f4ae5b' },
-          ],
-          colors: ['#d9d9d9', '#d9d9d9', '#d9d9d9'],
-        },
-        {
-          id: 2,
-          title: 'In Progress',
-          cards: [
-            { id: 3, title: 'Task 3', description: 'Description 3', color: '#f4ae5b' },
-          ],
-          colors: ['#d9d9d9', '#d9d9d9', '#d9d9d9'],
-        },
-        {
-          id: 3,
-          title: 'Done',
-          cards: [
-            { id: 4, title: 'Task 4', description: 'Description 4', color: '#f4ae5b' },
-          ],
-          colors: ['#d9d9d9', '#d9d9d9', '#d9d9d9'],
-        },
-      ],
+      columns: [],
       isEditMode: false,
+      loggedInUser: null,
     };
   },
+  async created() {
+    await this.fetchUserData();
+    await this.fetchColumns();
+  },
   methods: {
-    createColumn() {
-      const newColumn = {
-        id: Date.now(),
-        title: 'New Column',
-        cards: [],
-        colors: ['#d9d9d9', '#d9d9d9', '#d9d9d9'],
-      };
-      this.columns.push(newColumn);
+    async moveCard({ card, fromColumn, toColumn }) {
+      const fromIndex = this.columns.findIndex(column => column.column_id === fromColumn);
+      const toIndex = this.columns.findIndex(column => column.column_id === toColumn);
+      if (fromIndex !== -1 && toIndex !== -1) {
+        const cardIndex = this.columns[fromIndex].cards.findIndex(c => c.card_id === card.card_id);
+        if (cardIndex !== -1) {
+          const [movedCard] = this.columns[fromIndex].cards.splice(cardIndex, 1);
+          movedCard.column_id = toColumn;
+          this.columns[toIndex].cards.push(movedCard);
+          await this.updateCardsOrder(toColumn, this.columns[toIndex].cards); // Save changes on the server
+        }
+      }
     },
-    deleteColumn(index) {
-      this.columns.splice(index, 1);
+    async updateColumn(index, updatedColumn) {
+      this.columns = this.columns.map((column, i) =>
+        i === index ? { ...column, ...updatedColumn } : column
+      );
+
+      const color = JSON.stringify(updatedColumn.color);
+
+      try {
+        const response = await axios.post('http://localhost/X-men/back/update_column.php', {
+          id: updatedColumn.column_id,
+          column_name: updatedColumn.column_name,
+          color: color
+        });
+
+        if (!response.data.success) {
+          throw new Error('Ошибка базы данных: ' + response.data.error);
+        }
+        console.log('Колонка успешно обновлена.');
+      } catch (error) {
+        console.error('Ошибка при обновлении колонки:', error.message);
+        alert('Не удалось обновить колонку. Попробуйте снова позже.');
+      }
+    },
+    updateCardOrderInColumn(columnId) {
+      const column = this.columns.find(col => col.column_id === columnId);
+      if (column) {
+        column.cards.forEach((card, index) => {
+          card.order = index;
+        });
+      }
+    },
+    async updateCardOrder() {
+  const updatedCards = [];
+  this.columns.forEach((column) => {
+    column.cards.forEach((card, index) => {
+      updatedCards.push({ card_id: card.card_id, column_id: column.column_id, order: index });
+    });
+  });
+
+  try {
+    const response = await axios.post('http://localhost/X-men/back/update_card_order.php', updatedCards);
+    if (response.data.success) {
+      console.log('Порядок карточек успешно обновлен');
+    } else {
+      console.error('Ошибка при обновлении порядка карточек:', response.data.error);
+    }
+  } catch (error) {
+    console.error('Network Error:', error);
+  }
+}
+,
+    async createCard() {
+      const newCard = {
+        id: Date.now(),
+        title: '',
+        content: '',
+        color: '#666666',
+      };
+      try {
+        this.localCards.push(newCard);
+        this.$emit('updateCards', this.localCards);
+      } catch (error) {
+        console.error('Error creating card:', error);
+      }
+    },
+    onCreateCard(columnId) {
+      const cardData = {
+        title: this.newCardTitle,
+        description: this.newCardDescription
+      };
+      this.createCard(columnId, cardData);
+    },
+    async createColumn() {
+      if (!this.loggedInUser) {
+        console.error('Ошибка: не удалось получить идентификатор пользователя.');
+        return;
+      }
+
+      const newColumn = {
+        column_name: 'New Column',
+        user_id: localStorage.getItem('userid'),
+        color: JSON.stringify(['#d9d9d9', '#d9d9d9', '#d9d9d9']),
+        order: this.columns.length
+      };
+
+      try {
+        const response = await fetch('http://localhost/X-men/back/create_column.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(newColumn),
+        });
+
+        const data = await response.json();
+
+        if (data.id) {
+          newColumn.column_id = data.id;
+          newColumn.cards = [];
+          newColumn.color = ['#d9d9d9', '#d9d9d9', '#d9d9d9'];
+          this.columns.push(newColumn);
+        } else {
+          console.error('Ошибка при создании колонки:', data.error || 'Неизвестная ошибка');
+        }
+      } catch (err) {
+        console.error('Ошибка при создании колонки:', err);
+      }
+    },
+    async deleteColumn(index) {
+      const column = this.columns[index];
+      try {
+        const response = await fetch('http://localhost/X-men/back/delete_column.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id: column.column_id }),
+        });
+        const data = await response.json();
+        if (data.success) {
+          this.columns.splice(index, 1);
+        }
+      } catch (err) {
+        console.error('Ошибка при удалении колонки:', err);
+      }
     },
     toggleEditMode() {
       this.isEditMode = !this.isEditMode;
     },
-    moveCard(card, fromColumnIndex, toColumnIndex) {
-      const fromColumn = this.columns[fromColumnIndex];
-      const toColumn = this.columns[toColumnIndex];
+    updateOrder() {
+      const reorderedColumns = this.columns.map((column, index) => ({
+        column_id: column.column_id,
+        order: index
+      }));
 
-      const cardIndex = fromColumn.cards.findIndex(c => c.id === card.id);
-      if (cardIndex !== -1) {
-        fromColumn.cards.splice(cardIndex, 1);
-        toColumn.cards.unshift(card); // Add to the top
+      axios.post('http://localhost/X-men/back/update_column_order.php', reorderedColumns)
+        .then(response => {
+          if (response.data.success) {
+            console.log('Column order successfully updated');
+          } else {
+            console.error('Error updating column order:', response.data.error);
+          }
+        })
+        .catch(error => {
+          console.error('Network Error:', error);
+        });
+    },
+    logout() {
+      sessionStorage.removeItem('loggedInUser');
+      localStorage.removeItem('userid');
+      localStorage.removeItem('username');
+      this.loggedInUser = null;
+      this.$router.push('/login');
+    },
+    async fetchUserData() {
+      try {
+        const response = await fetch("http://localhost/X-men/back/login.php", {
+          method: 'GET',
+          credentials: 'include',
+        });
+        const data = await response.json();
+
+        if (data.success && data.user_found) {
+          this.loggedInUser = data.login;
+          sessionStorage.setItem('loggedInUser', this.loggedInUser);
+        } else {
+          console.error('Ошибка при получении данных о пользователе:', data);
+        }
+      } catch (error) {
+        console.error("Ошибка при получении данных о пользователе:", error);
       }
     },
-    updateColumn(index, newTitle) {
-      this.columns[index].title = newTitle;
+    async fetchColumns() {
+      try {
+        const userId = localStorage.getItem('userid');
+        const response = await fetch(`http://localhost/X-men/back/get_columns.php?user_id=${userId}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        const data = await response.json();
+        this.columns = data.map(column => {
+          if (typeof column.color === 'string') {
+            column.color = JSON.parse(column.color);
+          }
+          return column;
+        });
+
+        this.columns.sort((a, b) => a.order - b.order);
+        this.columns.forEach(column => {
+          column.cards.sort((a, b) => a.order - b.order);
+        });
+      } catch (err) {
+        console.error('Ошибка при загрузке колонок:', err);
+      }
     },
-    updateCards(index, newCards) {
-      this.columns[index].cards = newCards;
-    },
-    changeColumnColor(index, color) {
-      this.columns[index].colors.unshift(color);
-      this.columns[index].colors = this.columns[index].colors.slice(0, 3);
-    },
-    toggleOrder() {
-      // implement the function to toggle column order
-    },
-    updateOrder() {
-      // handle drag and drop reorder
-    },
+    async updateCardsOrder(columnId, cards) {
+      try {
+        const updatedCards = cards.map((card, index) => ({
+          card_id: card.card_id,
+          column_id: columnId,
+          order: index
+        }));
+
+        console.log('Updating cards order:', updatedCards); // Debugging log
+
+        const response = await axios.post('http://localhost/X-men/back/update_card_order.php', updatedCards);
+
+        if (response.data.success) {
+          console.log('Card order successfully updated');
+        } else {
+          console.error('Error updating card order:', response.data.error);
+        }
+      } catch (error) {
+        console.error('Network Error:', error);
+      }
+    }
   },
+  mounted() {
+    const storedUserId = localStorage.getItem('username');
+    if (storedUserId) {
+      this.loggedInUser = storedUserId;
+    }
+  }
 };
 </script>
+
 
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
@@ -129,6 +301,8 @@ export default {
   align-items: center;
   padding: 20px;
   font-family: 'Inter', sans-serif;
+  /* height: 100vh;
+  overflow: hidden; */
 }
 
 .board-header {
@@ -144,7 +318,8 @@ export default {
   margin-bottom: 20px;
 }
 
-.create-column-btn, .edit-columns-btn {
+.create-column-btn,
+.edit-columns-btn {
   padding: 10px 20px;
   margin-top: 25px;
   border-radius: 8px;
@@ -234,47 +409,56 @@ export default {
   gap: 10px;
   position: fixed;
   top: 35px;
-  right: 5%;
+  right: 4%;
 }
 
 .user-details {
-  width: 241px; /* Возвращаем ширину блока к предыдущему значению */
+  width: 241px;
+  /* Возвращаем ширину блока к предыдущему значению */
   height: 45px;
-  padding: 5px 10px; /* Уменьшаем отступы внутри блока */
-  border-radius: 12px; /* Уменьшаем радиус закругления */
+  padding: 5px 10px;
+  /* Уменьшаем отступы внутри блока */
+  border-radius: 12px;
+  /* Уменьшаем радиус закругления */
   overflow: hidden;
   border: 2px solid #295EA9;
   background: #fff;
   display: flex;
-  justify-content: space-between; /* Изменяем выравнивание на центральное */
+  justify-content: space-between;
+  /* Изменяем выравнивание на центральное */
   align-items: center;
 }
 
 .user-name {
-  text-align: center; /* Выравниваем текст по центру */
+  text-align: center;
+  /* Выравниваем текст по центру */
   color: #032A4E;
   font-size: 16px;
   font-family: Inter, sans-serif;
   font-weight: 700;
   word-wrap: break-word;
-  flex: 1; /* Занимаем оставшееся пространство */
+  flex: 1;
+  /* Занимаем оставшееся пространство */
 }
 
 .logout-icon {
   width: 20px;
   height: 20px;
-  cursor: pointer; /* Делаем курсор указателем при наведении */
+  cursor: pointer;
+  /* Делаем курсор указателем при наведении */
   /* Изменяем позиционирование иконки */
-  margin-right: 5px; /* Отодвигаем иконку от правого края */
+  margin-right: 5px;
+  /* Отодвигаем иконку от правого края */
 }
 
 
-.fixed-bar{
+.fixed-bar {
   position: fixed;
   top: 0;
-  left: 5%;
-  z-index: 1000; /* Устанавливаем z-index, чтобы контроли оставались поверх других элементов */
-  padding: 10px; /* Добавляем отступы для улучшения визуального восприятия */
+  left: 4%;
+  z-index: 1000;
+  /* Устанавливаем z-index, чтобы контроли оставались поверх других элементов */
+  padding: 10px;
+  /* Добавляем отступы для улучшения визуального восприятия */
 }
-
 </style>
