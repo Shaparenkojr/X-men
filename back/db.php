@@ -1,13 +1,18 @@
 <?php
-$severname = "localhost";
-$username = "root";
-$password = "";
-$dbname = "registerUser";
+function getDB() {
+    $servername = "localhost";
+    $username = "root";
+    $password = "";
+    $dbname = "registeruser";
 
-$conn = mysqli_connect($server, $username, $password, $dbname);
+    // Создаем подключение
+    $conn = new mysqli($servername, $username, $password, $dbname);
 
-if (!$conn) {
-    die("Ошибка: " . mysqli_connect_error());
+    // Проверяем подключение
+    if ($conn->connect_error) {
+        die("Connection failed: " . $conn->connect_error);
+    }
+
+    return $conn;
 }
-// mysqli_close($conn);
 ?>
