@@ -9,13 +9,14 @@
 
 <body>
     <form action="register.php" method="post">
-        <input type="text" placeholder="Email" name="email">
+
         <input type="text" placeholder="Логин" name="login">
         <input type="text" placeholder="Пароль" name="pass">
+        <input type="text" placeholder="Email" name="email">
         <button type="submit">Регистрация</button>
     </form>
-    
-    
+
+
     <form action='login.php' method="post">
         <input type="text" placeholder="Логин" name="login">
         <input type="text" placeholder="Пароль" name="pass">
